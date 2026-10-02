@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: eadrp-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eadrp}
+      POSTGRES_USER: ${POSTGRES_USER:-eadrp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eadrp_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eadrp} -d ${POSTGRES_DB:-eadrp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: eadrp-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  ml-service:
+    build:
+      context: ./ml-service
+    container_name: eadrp-ml-service
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8001
+      MODEL_PATH: /app/artifacts/model.pkl
+      LABEL_ENCODER_PATH: /app/artifacts/label_encoder.pkl
+      METADATA_PATH: /app/artifacts/metadata.json
+    ports:
+      - "${ML_SERVICE_PORT:-8001}:8001"
+    volumes:
+      - ./ml-service/artifacts:/app/artifacts
+      - ./ml-service/data:/app/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: eadrp-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+    environment:
+      APP_NAME: EADRP Backend
+      API_PREFIX: /api/v1
+      SECRET_KEY: change-this-in-production
+      ACCESS_TOKEN_EXPIRE_MINUTES: 120
+      DATABASE_URL: postgresql+psycopg://eadrp:eadrp_password@postgres:5432/eadrp
+      ML_SERVICE_URL: http://ml-service:8001
+      CORS_ORIGINS: http://localhost:5173,http://frontend:5173
+      ADMIN_EMAIL: admin@eadrp.com
+      ADMIN_PASSWORD: Admin@1234
+      ADMIN_FULL_NAME: System Admin
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: eadrp-frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:

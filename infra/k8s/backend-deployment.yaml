@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eadrp-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eadrp-backend
+  template:
+    metadata:
+      labels:
+        app: eadrp-backend
+    spec:
+      containers:
+        - name: backend
+          image: your-registry/eadrp-backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://eadrp:eadrp_password@postgres:5432/eadrp
+            - name: ML_SERVICE_URL
+              value: http://eadrp-ml-service:8001
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000

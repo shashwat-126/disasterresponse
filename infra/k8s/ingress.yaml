@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eadrp-ingress
+spec:
+  rules:
+    - host: eadrp.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eadrp-backend
+                port:
+                  number: 8000

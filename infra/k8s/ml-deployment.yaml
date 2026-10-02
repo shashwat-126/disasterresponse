@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eadrp-ml-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eadrp-ml-service
+  template:
+    metadata:
+      labels:
+        app: eadrp-ml-service
+    spec:
+      containers:
+        - name: ml-service
+          image: your-registry/eadrp-ml-service:latest
+          ports:
+            - containerPort: 8001
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
